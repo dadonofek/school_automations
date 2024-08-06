@@ -3,6 +3,8 @@ from datetime import date, timedelta
 from ics import Calendar
 from collections import defaultdict
 from utils import *
+import pickle
+import os
 
 
 # pmpc = per meeting per child
@@ -30,7 +32,9 @@ hebrew_months = {
     7: 'יולי',
     8: 'אוגוסט'
 }
-class CLASS():
+
+
+class CLASS:
     def __init__(self, **kwargs):
         self.name = kwargs.get('name')
         self.weekday = kwargs.get('weekday')
@@ -79,8 +83,9 @@ class BASE(ABC):
         self.year_start = kwargs.get('year_start')
         self.year_end = kwargs.get('year_end')
         self.gsheet_id = kwargs.get('gsheet_id')
-        self.holidays_ics_path = kwargs.get('holidays_ics_path')
-        self.holidays_pdf_path = kwargs.get('holidays_pdf_path')
+        self.base_dir = kwargs.get('base_dir')
+        # self.holidays_ics_path = os.path.join(self.base_dir, kwargs.get('holidays_ics_path'))
+        # self.holidays_pdf_path = os.path.join(self.base_dir, kwargs.get('holidays_pdf_path'))
         self.credentials_path = kwargs.get('credentials_path')
         self.input_tab = kwargs.get('input_tab')
 
@@ -97,7 +102,7 @@ class BASE(ABC):
         self.holidays = set()
 
 
-    def plan(self):
+    def plan(self, write_to_sheet=True):
         '''
         get data from gsheet (filled by user) and from holidays
         to plan total expected expenses
@@ -110,10 +115,11 @@ class BASE(ABC):
         self.parse_holidays()
         for cl in self.classes.values():
             self.total_classes_cost += cl.calc_exp_cost(self.holidays, self.year_start, self.year_end, write=True)
-            write_to_sheet_cell(credentials_path=self.credentials_path,
-                                gsheet_id=self.gsheet_id,
-                                tab='input',
-                                data={(cl.line, 0): cl.total_exp_cost})
+            if write_to_sheet:
+                write_to_sheet_cell(credentials_path=self.credentials_path,
+                                    gsheet_id=self.gsheet_id,
+                                    tab='input',
+                                    data={(cl.line, 0): cl.total_exp_cost})
 
         self.total_exp_cost = self.total_gifts_cost + self.total_classes_cost
         # sanity:
@@ -121,7 +127,8 @@ class BASE(ABC):
             print('somthing is wrong in total cost calc')
             return None
 
-        self.create_monitor_tab()
+        if write_to_sheet:
+            self.create_monitor_tab()
         return self.total_exp_cost
 
     def create_monitor_tab(self):
@@ -214,16 +221,30 @@ class BASE(ABC):
         if self.total_gifts_cost != sum(self.gifts['מתנות לצוות'].values()) + sum(self.gifts['מתנות לילדים'].values()):
             print('somthing is wrong in gifts cost calc')
 
+    def save(self):
+        year_directory = os.path.join(self.base_dir, f'{self.year_start}-{self.year_end}')
+        if not os.path.exists(year_directory):
+            os.makedirs(year_directory)
+
+        # Save the instance in the year directory
+        file_path = os.path.join(year_directory, 'base_instance.pkl')
+        with open(file_path, 'wb') as f:
+            pickle.dump(self, f)
+
+        print(f'BASE instance saved in {file_path}')
+
 
 if __name__ == "__main__":
     params = {'year_start': 2022,
               'year_end': 2023,
               'gsheet_id': '1dx4lOYBhhNl57gLA9uLuINQ3fhBYElpGS0MwOPwzjEA',
-              'holidays_ics_path': '/Users/dadonofek/PycharmProjects/general/school_automation_1/calendar/holiday_schedule.ics',
-              'holidays_pdf_path': '/Users/dadonofek/PycharmProjects/general/school_automation_1/calendar/לוח חופשות תשפג 2022-2023.pdf',
+              'base_dir': '/Users/dadonofek/PycharmProjects/general/school_automations',
+              'holidays_ics_path': 'calendar/holiday_schedule.ics',
+              'holidays_pdf_path': 'calendar/לוח חופשות תשפג 2022-2023.pdf',
               'credentials_path': '/Users/dadonofek/Library/Mobile Documents/com~apple~CloudDocs/מסמכים חשובים/google_credentials.json',
               'input_tab': 'input'
               }
 
     base = BASE(**params)
-    data = base.plan()
+    base.plan(write_to_sheet=False)
+    base.save()

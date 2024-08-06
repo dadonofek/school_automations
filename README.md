@@ -16,6 +16,21 @@ project status:
 
 3- monitoring.
 
+how to manage collecting and monitor?
+
+manage collecting:
+- parse the paybox traffic and parents phone numbers to see how payed
+- periodically send whatsapp messages to remind however did not pay and send myself a report
+
+monitor:
+- parse paybox traffic to see what was payed
+- save screenshots (best from whatsapp to the teacher)
+- write to the monitor tab
+- send a monthly report
+- 
+
+
+
 
 
 a side project( linked to section 1):
